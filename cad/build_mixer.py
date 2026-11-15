@@ -4,7 +4,7 @@ Parametrik B-rep CAD modeli: CadQuery / OpenCascade.
 
 Chiqish fayllari:
   out/beton_qozon_2m3.step   - SolidWorks / Inventor / FreeCAD da ochiladigan yig'ma (assembly)
-  viewer/mixer.bin, mixer.json - 3D ko'ruvchi uchun uchburchak to'rlari
+  viewer/mixer.json         - 3D ko'ruvchi uchun detallar ro'yxati va uchburchak to'rlari (base64)
 
 O'lchamlar mm da. X - ko'ndalang, Y - vallar bo'ylab, Z - yuqoriga. Vallar o'qi z = 0.
 """
@@ -695,8 +695,8 @@ for p in parts:
     ntri += nt * len(p["inst"])
     meta["parts"].append(dict(id=p["id"], name=p["name"], desc=p["desc"], mat=p["mat"], group=p["group"],
                               tag=p["tag"], v=[vo, nv], i=[io, nt], inst=[mat34(l) for l in p["inst"]]))
-with open(os.path.join(root, "viewer", "mixer.bin"), "wb") as f:
-    f.write(blob)
+import base64
+meta["bin"] = base64.b64encode(bytes(blob)).decode("ascii")   # to'rlar JSON ichida (base64)
 with open(os.path.join(root, "viewer", "mixer.json"), "w") as f:
     json.dump(meta, f, ensure_ascii=False, separators=(",", ":"))
 print("to'r: %.2f MB, %d uchburchak, %d detal turi" % (len(blob) / 1e6, ntri, len(parts)))
