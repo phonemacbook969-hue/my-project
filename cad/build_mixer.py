@@ -165,7 +165,7 @@ print("korpus")
 shell = omega(RO, C + RO, HT, -YO, YO).cut(omega(RS, C + RS, HT + 10, -YW, YW))
 shell = shell.cut(box(-MW, MW, -ML, ML, -720, -300))
 for sx in (-C, C):
-    shell = shell.cut(cylY(105, -YO - 5, YO + 5, x=sx))
+    shell = shell.cut(cylY(165, -YO - 5, YO + 5, x=sx))
 # yuqori flanes
 shell = shell.union(box(-1130, 1130, -1005, 1005, 688, 700).cut(box(-C - RS, C + RS, -YW, YW, 680, 705)))
 # halqa qovurg'alar
@@ -214,6 +214,10 @@ DA = SPAN / NT
 tile = sector(R, RS, -DA / 2 + 0.15, DA / 2 - 0.15, -148, 148)
 for hy in (-75, 75):
     tile = tile.cut(cylX(15, R - 1, R + 7, y=hy))
+try:
+    tile = tile.faces("<X").edges().chamfer(2.5)
+except Exception as e:
+    print("  (plitka faskasi o'tkazib yuborildi)")
 tinst, ninst = [], []
 for side in (-1, 1):
     for k in range(NT):
@@ -230,7 +234,7 @@ for side in (-1, 1):
 add("astar_tag", "Tag astari (Ni-Hard 4)",
     "Silindr tubining almashtiriladigan quyma plitkalari, 20 mm, qattiqligi 550-600 HB. "
     "Har bir plitka 2 ta yashirin kallakli bolt bilan tashqaridan tortiladi. Jami 64 dona.",
-    "liner", tile, inst=tinst, ang=0.12)
+    "liner", tile, inst=tinst, ang=0.2, tol=1.5)
 nut = comp(hexX(30, 0, 16), cylX(10, 0, 26))
 add("astar_gayka", "Astar gaykasi M20",
     "Tag plitkalarini korpus tashqarisidan tortadigan o'z-o'zidan qotuvchi gaykalar. "
@@ -238,10 +242,10 @@ add("astar_gayka", "Astar gaykasi M20",
 
 el = omega(R, C + R + 5, 500, LH, YW)
 for sx in (-C, C):
-    el = el.cut(cylY(122, LH - 5, YW + 5, x=sx))
+    el = el.cut(cylY(165, LH - 5, YW + 5, x=sx))
 el = el.cut(box(-2, 2, LH - 5, YW + 5, -460, 520)).cut(box(-1100, 1100, LH - 5, YW + 5, -2, 2))
 for sx in (-C, C):
-    el = el.cut(box(sx - 2, sx + 2, LH - 5, YW + 5, -620, -122))
+    el = el.cut(box(sx - 2, sx + 2, LH - 5, YW + 5, -620, -165))
 add("astar_torets", "Torets devor astari",
     "Torets devorlarining segmentli yeyilishga chidamli plitalari (Hardox 500, 15 mm). "
     "Val o'tgan joyda labirint halqa uchun teshik.", "liner", el,
@@ -252,41 +256,53 @@ add("astar_yon", "Yon devor astari", "Yuqori qutining yon devorlarini qoplaydiga
 
 # ================================================================= VALLAR
 print("vallar")
-shaft = (W("XY").polygon(6, 173).extrude(1760).rotate((0, 0, 0), (1, 0, 0), 90).translate((0, 880, 0))
-         .union(cylY(70, -1190, -878)).union(cylY(70, 878, 1215))
-         .union(cylY(118, 880, 899)).union(cylY(118, -899, -880)))
+shaft = W("XY").polygon(6, 173).extrude(1760).rotate((0, 0, 0), (1, 0, 0), 90).translate((0, 880, 0))
+journal = comp(cylY(70, -1182, -880), cylY(70, 880, 1215))
 add("val", "Qorishtirish vali (olti qirrali)",
     "Olti qirrali val, qirralar orasi 150 mm, 42CrMo4 po'latdan. Olti qirra qo'llarning valda sirpanmasligini "
     "ta'minlaydi. Aylanish tezligi ~25,7 ayl/min, ikki val bir-biriga qarama-qarshi aylanadi.",
     "steel", shaft, group="shaft1", ang=0.2)
 parts.append(dict(parts[-1], id="val2", group="shaft2"))
+add("sapfa", "Val sapfasi (D140)",
+    "Valning zichlagich va podshipnik o'tiradigan silliq silindrik uchlari. Yuritma tomondagi uchi "
+    "reduktorning ichi bo'sh valiga kiradi va siqish diski bilan qotiriladi.", "steel", journal, group="shaft1", ang=0.2)
+parts.append(dict(parts[-1], id="sapfa2", group="shaft2"))
 
 
 def make_hub():
-    h = cylY(140, -70, 70).union(box(-62, 62, -70, 70, -168, -95)).union(box(-62, 62, -70, 70, 95, 168))
+    lug = box(-62, 62, -70, 70, -168, -95).edges("|Y").fillet(16)
+    h = cylY(140, -70, 70).edges("%CIRCLE").chamfer(8).union(lug).union(lug.mirror("XY"))
     h = h.cut(W("XY").polygon(6, 175).extrude(200).rotate((0, 0, 0), (1, 0, 0), 90).translate((0, 100, 0)))
     h = h.cut(box(-2, 2, -80, 80, -200, 200))
     b = []
     for by in (-35, 35):
         for bz in (-132, 132):
-            b.append(hexX(30, 62, 76, y=by, z=bz))
-            b.append(hexX(30, -76, -62, y=by, z=bz))
+            b += [hexX(30, 62, 76, y=by, z=bz), cylX(22, 60, 64, y=by, z=bz), cylX(10, 76, 84, y=by, z=bz)]
+            b += [hexX(30, -78, -62, y=by, z=bz), cylX(22, -64, -60, y=by, z=bz)]
     return h, b
 
 
 def make_arm(tau, r_in, width, yoff):
     h, b = make_hub()
-    bar = box(120, 450, -30, 30, -40, 40)
+    # quyma qo'l: valdan kurakchaga qarab ingichkalashadi, qovurg'ali
+    bar = (W("YZ").rect(72, 96).workplane(offset=330).rect(56, 70).loft().translate((120, 0, 0))
+           .union(box(125, 430, -8, 8, -62, 62).edges("|Y").fillet(6)))
     if yoff:
-        bar = profY([(120, -40), (450, -40), (450, 40), (120, 40)], -30, 30)
-        bar = box(120, 300, -30, 30, -40, 40).union(box(260, 450, min(0, yoff) - 30, max(0, yoff) + 30, -40, 40))
-    pad = box(r_in, R + 20, -width / 2, width / 2, -15, 15).union(box(r_in + 20, 470, -70, 70, -48, -15))
-    bolts = [W("XY").polygon(6, 36).extrude(12).translate((r_in + 60, sy * 60, 15)) for sy in (-1, 1)]
-    bolts += [W("XY").polygon(6, 36).extrude(12).translate((r_in + 60, sy * 60, -60)) for sy in (-1, 1)]
+        bar = bar.union(box(300, 450, min(0, yoff) - 30, max(0, yoff) + 30, -36, 36).edges("|X").fillet(10))
+    plate = box(r_in, R + 20, -width / 2, width / 2, -15, 15).edges("|X").chamfer(5)
+    for sy in (-1, 1):   # sozlash uchun cho'zinchoq teshiklar izi
+        plate = plate.cut(box(r_in + 40, r_in + 100, sy * 60 - 11, sy * 60 + 11, 11, 20))
+    seat = box(r_in + 15, 475, -75, 75, -52, -15).edges("|X").fillet(8)
+    pad = plate.union(seat)
+    bolts = []
+    for sy in (-1, 1):
+        bolts += [W("XY").polygon(6, 36).extrude(13).translate((r_in + 70, sy * 60, 11)),
+                  W("XY").circle(21).extrude(4).translate((r_in + 70, sy * 60, 8)),
+                  W("XY").polygon(6, 36).extrude(14).translate((r_in + 70, sy * 60, -66)),
+                  W("XY").circle(11).extrude(24).translate((r_in + 70, sy * 60, -76))]
     pad = pad.rotate((0, 0, 0), (1, 0, 0), tau).translate((0, yoff, 0)).intersect(cylY(RT, -400, 400))
     bolts = [x.rotate((0, 0, 0), (1, 0, 0), tau).translate((0, yoff, 0)) for x in bolts]
-    body = h.union(bar)
-    return body, pad, b + bolts
+    return h.union(bar), pad, b + bolts
 
 
 arm_body, arm_pad, arm_bolts = make_arm(45, 380, 260, 0)
@@ -317,7 +333,7 @@ D_BLT = "Qo'l xomuti va kurakchani mahkamlovchi yuqori mustahkamlikdagi boltlar 
 for g, mi, sp, sn in (("shaft1", main1, sP1, sN1), ("shaft2", main2, sN2, sP2)):
     # sp: scr to'ri uchun, sn: scrN to'ri uchun joylashuvlar
     n = g[-1]
-    add("qol" + n, "Qorishtirish qo'li", D_ARM, "castarm", arm_body, group=g, inst=mi, ang=0.3)
+    add("qol" + n, "Qorishtirish qo'li", D_ARM, "castarm", arm_body, group=g, inst=mi, ang=0.2)
     add("kurak" + n, "Qorishtirish kurakchasi", D_PAD, "nihard", arm_pad, group=g, inst=mi, ang=0.15)
     add("qolbolt" + n, "Qo'l va kurakcha boltlari", D_BLT, "steel", comp(*arm_bolts), group=g, inst=mi, ang=0.6)
     add("tqol" + n + "a", "Torets qo'li", D_ARM, "castarm", scr_body, group=g, inst=sp, ang=0.3)
@@ -327,29 +343,185 @@ for g, mi, sp, sn in (("shaft1", main1, sP1, sN1), ("shaft2", main2, sN2, sP2)):
     add("tkurak" + n + "b", "Torets qirg'ich kurakchasi", D_SCR, "nihard", scrN_pad, group=g, inst=sn, ang=0.15)
     add("tbolt" + n + "b", "Qo'l va kurakcha boltlari", D_BLT, "steel", comp(*scrN_bolts), group=g, inst=sn, ang=0.6)
 
-# ================================================================= ZICHLAGICH, PODSHIPNIK
-print("podshipnik uzellari")
-ends = [T(sx, 0, 0) * (Location() if sy > 0 else RZ(180)) for sx in (-C, C) for sy in (1, -1)]
-seal = cylY(150, YO, 990).union(cylY(178, YO, YO + 16)).cut(cylY(72, YO - 5, 995))
-sb = [hexY(24, YO + 16, YO + 27, x=165 * math.cos(math.radians(a)), z=165 * math.sin(math.radians(a)))
-      for a in range(0, 360, 45)]
-seal = comp(seal, *sb, cylZ(6, 150, 172, y=965), hexZ(14, 172, 182, y=965))
-add("salnik", "Val zichlagichi (ko'p pog'onali)",
-    "Val korpusdan chiqadigan joydagi labirint + suzuvchi halqali zichlagich. Markaziy moylash tizimi "
-    "uzluksiz konsistent moy haydab, sement suti podshipnikka o'tishining oldini oladi. "
-    "Podshipnikdan havo oralig'i (fonar) bilan ajratilgan.", "gear", seal, inst=ends, ang=0.3)
-lant = (cylY(200, YO, 1070).cut(cylY(186, YO - 5, 1075))
-        .cut(box(-300, 300, 965, 1045, -62, 62)).cut(box(-62, 62, 965, 1045, -300, 300))
-        .union(cylY(232, 1060, 1080).cut(cylY(100, 1050, 1090))))
-add("fonar", "Podshipnik fonari",
-    "Zichlagich bilan podshipnik orasidagi ochiq derazali tayanch. Zichlagichdan sizgan suyuqlik derazadan "
-    "tashqariga oqib ketadi va podshipnikka yetib bormaydi.", "body", lant, inst=ends, ang=0.25)
-brg = cylY(190, 1080, 1170).union(cylY(120, 1170, 1186)).cut(cylY(72, 1075, 1190))
-bb = [hexY(30, 1170, 1184, x=160 * math.cos(math.radians(a)), z=160 * math.sin(math.radians(a)))
-      for a in range(30, 360, 60)]
-add("podshipnik", "Val podshipnik uzeli",
-    "Ikki qatorli sferik rolikli podshipnik (22228 turi) flanesli korpusda. Val egilishini o'zi "
-    "to'g'rilaydi. Har bir valda 2 tadan, jami 4 ta.", "gear", comp(brg, *bb), inst=ends, ang=0.3)
+# ================================================================= VAL UZELI: ZICHLAGICH, FONAR, PODSHIPNIK
+# Qozon ichidan tashqariga: himoya halqasi -> labirint -> suzuvchi (duo-cone) zichlagich -> manjetlar
+# -> ochiq fonar va sachratuvchi disk -> alohida podshipnik korpusi. Profil (r, y) da chiziladi va val
+# o'qi atrofida aylantiriladi; shu sababli kesim aniq chiqadi.
+print("val uzeli")
+labels = []
+CUTBOX = cq.Solid.makeBox(700, 900, 1400, Vector(-700, -1500, -700))   # x<0 yarmi olib tashlanadi
+
+
+def rev(pts):
+    return W("XY").polyline(pts).close().revolve(360, (0, 0, 0), (0, 1, 0))
+
+
+def solids_of(shape):
+    if isinstance(shape, W):
+        out = []
+        for v in shape.vals():
+            out.extend(v.Solids())
+        return out
+    return shape.Solids()
+
+
+def halfcut(shape):
+    out = []
+    for sd in solids_of(shape):
+        c = sd.moved(RZ(180)).cut(CUTBOX)
+        out.extend(c.Solids())
+    return cq.Compound.makeCompound(out)
+
+
+def add_u(pid, name, desc, mat, shape, rot=False, lab=None, ends="all", ang=0.14, tol=0.3):
+    """Val uzeli detali: 4 uchga joylash + ko'rgazma uchi (1-val, -y) uchun kesilgan nusxa."""
+    skw = dict(ang=ang, tol=tol)                       # kesim nusxasi: mayda to'r
+    kw = dict(ang=max(ang, 0.45), tol=max(tol, 1.2))   # to'liq nusxa korpus ichida, dag'al to'r yetadi
+    if isinstance(shape, W):
+        shape = cq.Compound.makeCompound(solids_of(shape))
+    if rot:
+        if ends == "all":
+            add(pid + "2", name, desc, mat, shape, group="shaft2", inst=[Location(), RZ(180)], **kw)
+            add(pid + "1", name, desc, mat, shape, group="shaft1", inst=[Location()], **kw)
+        else:
+            add(pid + "2", name, desc, mat, shape, group="shaft2", inst=[RZ(180)], **kw)
+        add(pid + "_f", name, desc, mat, shape, group="shaft1", inst=[RZ(180)], tag="secfull", **kw)
+    else:
+        if ends == "all":
+            others = [T(-C, 0, 0), T(C, 0, 0), T(C, 0, 0) * RZ(180)]
+        else:
+            others = [T(C, 0, 0) * RZ(180)]
+        add(pid, name, desc, mat, shape, inst=others, **kw)
+        add(pid + "_f", name, desc, mat, shape, inst=[T(-C, 0, 0) * RZ(180)], tag="secfull", **kw)
+    add(pid + "_s", name, desc, mat, halfcut(shape), inst=[T(-C, 0, 0)], tag="sec", **skw)
+    if lab:
+        labels.append(dict(name=name, pos=[-C, -lab[1], lab[0]]))
+
+
+def ring_bolts(af, r, y0, y1, n, a0):
+    return [hexY(af, y0, y1, x=r * math.cos(math.radians(a0 + 360.0 * k / n)),
+                 z=r * math.sin(math.radians(a0 + 360.0 * k / n))) for k in range(n)]
+
+
+add_u("u_himoya", "Val uchi himoya halqasi",
+      "Qozon ichida, valga o'rnatilgan Ni-Hard halqa (D300). Betonning asosiy zarbasi va yeyilishini o'ziga "
+      "oladi, orqasidagi zichlagichni to'sadi. Tashqi yuzidagi halqasimon tish devordagi ariqchaga kirib, "
+      "labirint hosil qiladi. Yeyilganda faqat shu halqa almashtiriladi.", "nihard",
+      rev([(88, 862), (150, 862), (150, 898), (128, 898), (128, 924), (118, 924), (118, 898), (70, 898),
+           (70, 880), (88, 880)]), rot=True, lab=(120, 870))
+lab_ring = rev([(86, 902), (115, 902), (115, 927), (131, 927), (131, 900), (163, 900), (163, 937), (86, 937)])
+for k in range(4):
+    a = math.radians(45 + 90 * k)
+    lab_ring = lab_ring.cut(cylY(4, 920, 940, x=123 * math.cos(a), z=123 * math.sin(a)))
+add_u("u_labirint", "Labirint halqa (qo'zg'almas)",
+      "Torets devori va astar teshigiga o'tqazilgan qattiq po'lat halqa. Ariqchasiga himoya halqasining "
+      "tishi 3 mm tirqish bilan kiradi. Orqa devoridagi 4 ta teshikdan moy ariqchaga o'tadi va tirqishdan "
+      "qozon ichiga siqib chiqariladi — sement suti ichkariga kira olmaydi.", "liner", lab_ring, lab=(158, 931))
+add_u("u_vtulka", "Val yeyilish vtulkasi",
+      "Valga issiq o'tqazilgan, sirti toblangan va jilolangan vtulka (D164). Manjetlar valning o'zida emas, "
+      "shu vtulkada ishlaydi: iz tushsa val emas, vtulka almashtiriladi.", "chrome",
+      rev([(70, 898), (82, 898), (82, 1016), (70, 1016)]), rot=True, lab=(76, 1012))
+hous = rev([(130, 937), (182, 937), (182, 957), (150, 957), (150, 1006), (100, 1006), (100, 978), (86, 978),
+            (86, 959), (104, 959), (104, 972), (124, 972), (124, 967), (130, 967)])
+hous = hous.cut(cylZ(4, 125, 160, y=952)).cut(cylZ(4, 95, 160, y=992)).cut(cylZ(5, -160, -125, y=962))
+add_u("u_korpus", "Zichlagich korpusi",
+      "Torets devoriga 8 ta M16 bolt bilan mahkamlangan quyma korpus. Ichida suzuvchi zichlagich kamerasi va "
+      "ikki manjet uyasi bor. Tepasida 2 ta moy kanali, pastida nazorat teshigi: undan sement suti tomsa, "
+      "zichlagich yeyilganini bildiradi.", "sealbody",
+      comp(hous, *ring_bolts(24, 168, 957, 968, 8, 22.5)), lab=(140, 992))
+add_u("u_tutqich", "Aylanuvchi halqa tutqichi",
+      "Vtulkaga mahkamlangan, val bilan aylanadigan tutqich. Konussimon uyasi rezina halqa orqali suzuvchi "
+      "zichlagichning aylanuvchi yarmini ushlab turadi va uni qo'zg'almas yarmiga siqadi.", "steel",
+      rev([(82, 940), (127, 940), (127, 949), (124, 949), (124, 944), (104, 944), (104, 957), (82, 957)]),
+      rot=True, lab=(92, 948))
+D_FS = ("Asosiy zichlagich: ikkita toblangan cho'yan halqa (62 HRC) jilolangan yuzalari bilan bir-biriga "
+        "siqilgan. Biri val bilan aylanadi, ikkinchisi korpusda turadi; orasidagi mikron tirqish moy pardasi "
+        "bilan yopiladi. Abraziv muhit uchun mo'ljallangan yagona zichlagich turi.")
+add_u("u_suzuvchi_a", "Suzuvchi zichlagich halqalari (duo-cone)", D_FS, "silver",
+      rev([(106, 948), (112, 948), (122, 955), (122, 958), (108, 958), (106, 956)]), rot=True, lab=(115, 958))
+add_u("u_suzuvchi_b", "Suzuvchi zichlagich halqalari (duo-cone)", D_FS, "silver",
+      rev([(106, 968), (112, 968), (122, 961), (122, 958), (108, 958), (106, 960)]))
+D_OR = ("Suzuvchi halqalarni uyasida ushlab turadigan va ularni bir-biriga siqadigan torik rezina halqalar "
+        "(NBR). Halqalar shu rezinada 'suzadi' — val biroz egilsa ham yuzalar ajralmaydi.")
+add_u("u_torik_a", "Torik rezina halqalar", D_OR, "rubber",
+      cq.Solid.makeTorus(119.5, 4.5, Vector(0, 948.5, 0), Vector(0, 1, 0)), rot=True, ang=0.4, tol=0.6)
+add_u("u_torik_b", "Torik rezina halqalar", D_OR, "rubber",
+      cq.Solid.makeTorus(119.5, 4.5, Vector(0, 967.5, 0), Vector(0, 1, 0)), lab=(124, 973), ang=0.4, tol=0.6)
+
+
+def lip(y0):
+    return rev([(82.3, y0 + 1), (86, y0), (100, y0), (100, y0 + 10), (96, y0 + 10), (96, y0 + 3), (89, y0 + 3),
+                (85, y0 + 9), (82.3, y0 + 7)])
+
+
+add_u("u_manjet", "Manjetli zichlagichlar (2 dona)",
+      "Ikkinchi to'siq: ikkita armaturali rezina manjet (FKM) vtulka ustida ishlaydi. Oralaridagi kamera "
+      "moy bilan to'ldiriladi. Suzuvchi zichlagich ishdan chiqsa ham podshipnik tomonga hech narsa o'tkazmaydi.",
+      "lip", comp(lip(980), lip(994)), lab=(93, 1000))
+add_u("u_plita", "Zichlagich qopqoq plitasi",
+      "Manjetlarni uyasida ushlab turadigan plita, 6 ta M10 bolt. Manjetlarni almashtirish uchun yechiladi.",
+      "dark", comp(rev([(85, 1006), (140, 1006), (140, 1014), (85, 1014)]), *ring_bolts(16, 122, 1014, 1021, 6, 0)),
+      lab=(132, 1010))
+grease = comp(rev([(115, 900), (118, 900), (118, 927), (115, 927)]), rev([(118, 924.2), (128, 924.2), (128, 927), (118, 927)]),
+              rev([(128, 900), (131, 900), (131, 927), (128, 927)]), rev([(124.2, 949.2), (129.8, 949.2), (129.8, 966.8), (124.2, 966.8)]),
+              rev([(82.2, 990.2), (95.8, 990.2), (95.8, 993.8), (82.2, 993.8)]))
+add("u_moy_s", "Konsistent moy",
+    "Sariq rang bilan moy to'ldirilgan bo'shliqlar ko'rsatilgan: labirint ariqchasi, suzuvchi zichlagich "
+    "kamerasi va manjetlar orasi. Markaziy nasos mikser ishlayotganda bu yerga uzluksiz moy haydaydi; "
+    "sarfi har bir uzelga soatiga bir necha gramm.", "grease", halfcut(grease), inst=[T(-C, 0, 0)], tag="sec", ang=0.14, tol=0.3)
+labels.append(dict(name="Konsistent moy", pos=[-C, -912, 116.5]))
+fit = comp(hexZ(17, 150, 164, y=952), cylZ(6, 164, 176, y=952), hexZ(14, 150, 160, y=992), cylZ(4, 160, 168, y=992),
+           hexZ(19, -160, -150, y=962))
+add_u("u_shtutser", "Moy shtutserlari va nazorat tiqini",
+      "Old shtutser markaziy moylash quvurchasiga ulangan (kamera va labirint uchun). Orqadagi press-maslyonka "
+      "manjetlar orasini qo'lda moylash uchun. Pastdagi tiqin — nazorat teshigi.", "copper", fit, lab=(170, 952),
+      ang=0.5)
+add_u("u_disk", "Sachratuvchi disk",
+      "Fonar oralig'ida val bilan aylanadigan disk. Zichlagichdan o'tib qolgan har qanday suyuqlikni markazdan "
+      "qochma kuch bilan chetga uloqtiradi — u val bo'ylab podshipnikka oqib bora olmaydi.", "steel",
+      rev([(70, 1020), (92, 1020), (92, 1026), (125, 1026), (125, 1032), (92, 1032), (92, 1042), (70, 1042)]),
+      rot=True, lab=(120, 1029))
+lant = (cylY(204, YO, 1062).cut(cylY(190, YO - 5, 1067))
+        .cut(box(-300, 300, 972, 1042, -75, 75)).cut(box(-75, 75, 972, 1042, -300, 300))
+        .union(rev([(150, 1062), (240, 1062), (240, 1080), (150, 1080)]))
+        .union(rev([(204, YO), (224, YO), (204, 955)])))
+add_u("u_fonar", "Podshipnik fonari",
+      "Zichlagich bilan podshipnik orasidagi ochiq derazali payvand tayanch. Asosiy g'oya: zichlagich va "
+      "podshipnik bitta korpusda emas. Sizgan suyuqlik derazadan tashqariga oqadi va ko'zga ko'rinadi, "
+      "podshipnik esa quruq qoladi.", "body", lant, lab=(197, 1052))
+bh = rev([(74, 1080), (240, 1080), (240, 1100), (190, 1100), (190, 1185), (125, 1185), (125, 1094), (74, 1094)])
+add_u("u_podkorpus", "Podshipnik korpusi",
+      "Fonarga 6 ta M20 bolt bilan mahkamlangan quyma korpus. Old tomonida labirint yelkasi podshipnik "
+      "moyini ichkarida ushlab turadi.", "sealbody",
+      comp(bh, *ring_bolts(30, 215, 1100, 1114, 6, 0), hexZ(14, 190, 202, y=1140)), lab=(180, 1150))
+D_BR = ("Ikki qatorli sferik rolikli podshipnik 22228 (140 x 250 x 68 mm), dinamik yuk ko'tarishi ~700 kN. "
+        "Sferik yo'lakcha tufayli val 1-2 gradusgacha egilsa ham tiqilmaydi — 1,8 m uzunlikdagi yuklangan "
+        "val uchun shart.")
+add_u("u_tashqi", "Sferik rolikli podshipnik 22228", D_BR, "silver",
+      rev([(110, 1094), (125, 1094), (125, 1162), (110, 1162), (106, 1128)]), lab=(118, 1128))
+add_u("u_ichki", "Sferik rolikli podshipnik 22228", D_BR, "silver",
+      rev([(70, 1094), (86, 1094), (90, 1128), (86, 1162), (70, 1162)]), rot=True)
+rollers = []
+for row, tilt in ((1112, 9), (1144, -9)):
+    for k in range(18):
+        a = 20.0 * k + (0 if row < 1120 else 10)
+        rl = (W("XY").circle(11).extrude(27).translate((0, 0, -13.5)).edges("%CIRCLE").fillet(3)
+              .rotate((0, 0, 0), (1, 0, 0), 90).rotate((0, 0, 0), (0, 0, 1), tilt).translate((98, row, 0))
+              .rotate((0, 0, 0), (0, 1, 0), a))
+        rollers.append(rl)
+add_u("u_rolik", "Sferik rolikli podshipnik 22228", D_BR, "chrome", comp(*rollers), ang=0.6, tol=0.8)
+nut = rev([(70, 1164), (97, 1164), (97, 1180), (70, 1180)])
+for k in range(4):
+    nut = nut.cut(box(88, 100, 1160, 1184, -7, 7).rotate((0, 0, 0), (0, 1, 0), 45 + 90 * k))
+add_u("u_gayka", "Podshipnik qotirish gaykasi",
+      "Ariqchali dumaloq gayka (KM28) va qulf shaybasi podshipnikning ichki halqasini valda o'q bo'ylab "
+      "qotiradi. Bu tayanch 'qotirilgan', yuritma tomondagisi esa 'suzuvchi' — val qiziganda erkin uzayadi.",
+      "steel", nut, rot=True, lab=(92, 1172))
+cap = comp(rev([(0, 1185), (190, 1185), (190, 1199), (60, 1199), (60, 1206), (0, 1206)]),
+           *ring_bolts(24, 165, 1199, 1209, 6, 0))
+add_u("u_qopqoq", "Podshipnik qopqog'i",
+      "Val uchini yopadigan qopqoq. Yuritma tomonda uning o'rnida reduktor flanesi turadi.", "sealbody",
+      cap, ends="nd", lab=(150, 1195))
 
 # ================================================================= REDUKTOR, YURITMA
 print("yuritma")
@@ -599,7 +771,7 @@ add("gs_kronshteyn", "Gidrosilindr kronshteyni", "Silindrning orqa sharniri mahk
 
 # gidrostansiya
 hpu = comp(box(600, 900, -1215, -945, 300, 560), box(580, 920, -1225, YO * -1, 285, 300),
-           box(590, 610, -1215, -YO, 120, 300).cut(box(580, 620, -1215, -990, 110, 240)),
+           box(615, 635, -1215, -YO, 120, 300).cut(box(605, 645, -1215, -990, 110, 245)),
            box(890, 910, -1215, -YO, 120, 300).cut(box(880, 920, -1215, -990, 110, 240)))
 add("gs_bak", "Gidrostansiya baki (40 L)",
     "Qopqoq yuritmasining moy baki, sath ko'rsatkichi va nafas filtri bilan. Torets devoridagi "
@@ -631,9 +803,9 @@ add("moy_nasos", "Markaziy moylash nasosi",
     "yellow", lube)
 ll = []
 for sx in (-1, 1):
-    ll.append(pipe([(sx * 40, -960, 290), (sx * C, -960, 290), (sx * C, -960, 150)], 5))
-    ll.append(pipe([(sx * 60, -975, 300), (sx * 1090, -975, 300), (sx * 1090, 965, 300), (sx * C, 965, 300),
-                    (sx * C, 965, 150)], 5))
+    ll.append(pipe([(sx * 40, -952, 290), (sx * C, -952, 290), (sx * C, -952, 172)], 5))
+    ll.append(pipe([(sx * 60, -975, 300), (sx * 1090, -975, 300), (sx * 1090, 952, 300), (sx * C, 952, 300),
+                    (sx * C, 952, 172)], 5))
 add("moy_quvur", "Moylash quvurchalari",
     "Nasosdan har bir zichlagichga boradigan 8 mm mis quvurchalar.", "copper", comp(*ll), ang=0.6)
 
@@ -679,7 +851,7 @@ def mat34(loc):
 
 
 blob = bytearray()
-meta = {"groups": groups, "parts": [], "params": dict(C=C, R=R, LH=LH, HT=HT, GZ=GZ, GR=GR, MW=MW, ML=ML, MZ=MZ, RT=RT)}
+meta = {"groups": groups, "labels": labels, "parts": [], "params": dict(C=C, R=R, LH=LH, HT=HT, GZ=GZ, GR=GR, MW=MW, ML=ML, MZ=MZ, RT=RT)}
 cache = {}
 ntri = 0
 for p in parts:
@@ -705,10 +877,12 @@ if "--nostep" not in sys.argv:
     COL = dict(body=(0.85, 0.84, 0.8), dark=(0.2, 0.22, 0.24), liner=(0.35, 0.35, 0.36), nihard=(0.3, 0.3, 0.32),
                steel=(0.6, 0.62, 0.65), castarm=(0.25, 0.25, 0.27), gear=(0.45, 0.47, 0.5), gearblue=(0.1, 0.3, 0.55),
                motor=(0.1, 0.3, 0.55), yellow=(0.95, 0.75, 0.1), rubber=(0.07, 0.07, 0.07), chrome=(0.9, 0.9, 0.92),
-               hydr=(0.08, 0.08, 0.09), water=(0.15, 0.4, 0.7), fabric=(0.9, 0.9, 0.85), red=(0.8, 0.1, 0.1),
+               hydr=(0.08, 0.08, 0.09), sealbody=(0.3, 0.42, 0.5), lip=(0.45, 0.25, 0.15), grease=(0.9, 0.7, 0.2), water=(0.15, 0.4, 0.7), fabric=(0.9, 0.9, 0.85), red=(0.8, 0.1, 0.1),
                silver=(0.8, 0.8, 0.8), copper=(0.7, 0.45, 0.25))
     assy = cq.Assembly(name="beton_qozon_2m3")
     for p in parts:
+        if p["tag"] == "sec":
+            continue
         gv = Location(Vector(*groups[p["group"]]["pivot"]))
         extra = Location()
         if p["group"] == "cylbody":

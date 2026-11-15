@@ -61,11 +61,18 @@ button{font-family:var(--body)}
 #list{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:4px;padding:4px}
 #list button{background:none;border:0;color:var(--fg);text-align:left;padding:5px 6px;font-size:13px;border-radius:3px;cursor:pointer}
 #list button:hover{background:#1f2a32}
-@media (max-width:640px){#hint{display:none}#status h1{font-size:17px}.gauges b{font-size:15px}}
+#labels{position:fixed;inset:0;z-index:4;pointer-events:none}
+#labels button{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;width:26px;height:26px;border-radius:50%;border:1.5px solid #1a1300;background:var(--accent);color:#1a1300;font:700 14px var(--display);cursor:pointer;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+#labels button.on{background:#fff}
+#legend{display:flex;flex-direction:column;gap:1px;margin-top:8px;max-height:30vh;overflow:auto}
+#legend button{background:none;border:0;color:var(--fg);text-align:left;padding:3px 0;font-size:12.5px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+#legend b{font-family:var(--display);color:var(--accent);min-width:16px;text-align:right}
+@media (max-width:640px){#hint{display:none}#status{padding:8px 10px;max-width:calc(100vw - 170px)}#status h1{font-size:15px}#status .sub{display:none}#phase{font-size:15px;margin-top:4px}.gauges{gap:2px 10px}.gauges b{font-size:14px}.gauges div{font-size:11px}}
 </style>
 
 <div id="stage"></div>
 <div id="cross"></div>
+<div id="labels" hidden></div>
 
 <div id="status" class="hud">
   <h1>Ikki valli beton qozoni</h1>
@@ -114,6 +121,7 @@ button{font-family:var(--body)}
   <div>
     <h2>Ko'rinish</h2>
     <div class="row">
+      <button class="btn primary wide" id="bSeal">Val zichlagichi kesimi</button>
       <button class="btn" id="bCut">Kesim</button>
       <button class="btn" id="bXray">Shaffof korpus</button>
       <button class="btn" id="bCover">Ustki qismni yashirish</button>
@@ -127,7 +135,7 @@ button{font-family:var(--body)}
   </div>
 </div>
 
-<div id="card" class="hud" hidden><button class="x" id="cardX" aria-label="Yopish">×</button><h3 id="cName"></h3><p id="cDesc"></p></div>
+<div id="card" class="hud" hidden><button class="x" id="cardX" aria-label="Yopish">×</button><h3 id="cName"></h3><p id="cDesc"></p><div id="legend" hidden></div></div>
 <div id="msg" class="hud" hidden></div>
 <div id="hint" class="hud">Sichqoncha bilan torting — qarash · W A S D — yurish · detalni bosing — ma'lumot</div>
 <div id="joy" hidden><i></i></div>
@@ -199,7 +207,7 @@ scene.add(new THREE.HemisphereLight(0xdfeaf2,0x55585a,0.18));
 const sun=new THREE.DirectionalLight(0xfff3df,1.05);sun.position.set(14,24,10);sun.castShadow=true;
 sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-13,right:13,top:13,bottom:-13,near:1,far:70});sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.03;
 scene.add(sun);
-const inLight=new THREE.PointLight(0xfff0d0,0.55,5,1.5);inLight.position.set(0,H0+0.55,0);scene.add(inLight);
+for(const z of[-.55,.55]){const l=new THREE.PointLight(0xfff1d6,.5,4.5,1.6);l.position.set(0,H0+.6,z);scene.add(l);}
 
 function canvasTex(w,h,draw,rx,ry){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
   const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx||1,ry||1);t.anisotropy=8;return t;}
@@ -256,13 +264,7 @@ function rod(a,b,r,mat){const va=new THREE.Vector3(...a),vb=new THREE.Vector3(..
   for(const y of[1.6,3.0]){const s=new THREE.Mesh(new THREE.CylinderGeometry(y<2?1.1:1.16,y<2?1.07:1.15,.22,28,1,true),org);s.position.y=y;_drum.add(s);}
   const hop=new THREE.Mesh(new THREE.CylinderGeometry(.62,.3,.55,20,1,true),std(0xe9e9e6,.2,.45,{side:THREE.DoubleSide}));hop.position.set(0,3.6,0);hop.castShadow=true;world.add(hop);
   bx(.08,2.4,.08,-.7,2.3,-.3,blk);bx(.08,2.4,.08,.7,2.3,-.3,blk);bx(1.5,.08,.08,0,3.35,-.3,blk);
-  // operator (o'lcham uchun): 1,75 m
-  const man=new THREE.Group();const vest=std(0xe8601a,0,.8),skin=std(0xc99a78,0,.8),trs=std(0x26323d,0,.9),helm=std(0xf5f5f0,.1,.4);
-  const part=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=true;man.add(o);};
-  part(new THREE.CylinderGeometry(.09,.08,.85,10),trs,-.1,.425,0);part(new THREE.CylinderGeometry(.09,.08,.85,10),trs,.1,.425,0);
-  part(new THREE.CylinderGeometry(.2,.17,.6,12),vest,0,1.15,0);part(new THREE.CylinderGeometry(.055,.05,.6,8),vest,-.26,1.13,0);part(new THREE.CylinderGeometry(.055,.05,.6,8),vest,.26,1.13,0);
-  part(new THREE.SphereGeometry(.105,14,10),skin,0,1.58,0);part(new THREE.SphereGeometry(.125,14,8,0,6.3,0,1.5),helm,0,1.63,0);
-  man.position.set(2.15,5.5,-.2);man.rotation.y=-1.2;world.add(man);
+
 }
 
 // ---------------------------------------------------------------- CAD modelini yuklash
@@ -271,16 +273,50 @@ try{meta=await fetch('mixer.json').then(r=>{if(!r.ok)throw 0;return r.json()});c
 catch(e){$('loadMsg').textContent='Model fayli (mixer.json) yuklanmadi. Sahifani qayta oching.';return;}
 const MAT={body:[0xd9d6cc,.15,.5],dark:[0x2c3136,.3,.55],liner:[0x5d5f62,.75,.6],nihard:[0x4c4d51,.8,.52],steel:[0xa9adb3,.9,.35],castarm:[0x3a3c40,.6,.7],
   gear:[0x7b8087,.7,.45],gearblue:[0x1d4f8c,.25,.45],motor:[0x1d4f8c,.25,.5],yellow:[0xf0b90f,.1,.5],rubber:[0x141414,0,.9],chrome:[0xf2f2f2,1,.08],hydr:[0x17181a,.4,.4],
-  water:[0x2f74b5,.3,.4],fabric:[0xe6e2d6,0,1],red:[0xc21d1d,.1,.45],silver:[0xd0d2d4,.9,.3],copper:[0xb87333,1,.3]};
-const HOUSING=new Set(['korpus','ogiz','astar_tag','astar_torets','astar_yon','astar_gayka','qopqoq','voronka','yeng','lyuk','lyuk2','panjara','panjara2','inert_kirish']);
-const XRAY=new Set(['korpus','ogiz','qopqoq','voronka','inert_kirish','lyuk','lyuk2']);
-const mats={},clipPlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0.02);
-function getMat(key,part){const hk=HOUSING.has(part.id),xk=XRAY.has(part.id);const k=key+(hk?'_h':'')+(xk?'_x':'');
-  if(!mats[k]){const d=MAT[key];mats[k]=std(d[0],d[1],d[2],{side:hk?THREE.DoubleSide:THREE.FrontSide});mats[k].userData={housing:hk,xray:xk};}return mats[k];}
+  water:[0x2f74b5,.3,.4],fabric:[0xe6e2d6,0,1],red:[0xc21d1d,.1,.45],silver:[0xd0d2d4,.9,.3],copper:[0xb87333,1,.3],sealbody:[0x4f7186,.35,.5],lip:[0x6e3d22,0,.8],grease:[0xe8b020,0,.35]};
+const HOUSING=new Set(['korpus','ogiz','astar_tag','astar_torets','astar_yon','astar_gayka','qopqoq','voronka','yeng','lyuk','lyuk2','panjara','panjara2','inert_kirish','suv_quvur','qoshimcha','moy_quvur','oyoq_l']);
+const XRAY=new Set(['korpus','ogiz','qopqoq','voronka','inert_kirish']);
+const INNER=/^(qol|kurak|tqol|tkurak|tbolt|val|lyuk|panjara|astar_tag|astar_torets|astar_yon|suv_purkagich|zatvor$|u_himoya)/;
+// Protsedura tekstura: quyma sirt g'adir-budurligi, rang notekisligi va qotgan sement qatlami (3D shovqin, UV kerak emas)
+const NOISE=`
+float h3(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+ return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+            mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 p){return .5*vn(p)+.3*vn(p*2.7+7.)+.2*vn(p*6.9+3.);}`;
+const GL2=renderer.capabilities.isWebGL2;
+function detail(mat,o){
+  mat.onBeforeCompile=sh=>{
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vOP;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 opx=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nopx=instanceMatrix*opx;\n#endif\nvOP=opx.xyz;');
+    let f=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vOP;'+NOISE)
+      .replace('#include <color_fragment>',`#include <color_fragment>
+        float nA=fbm(vOP*${o.s1.toFixed(4)});float nB=fbm(vOP*${o.s2.toFixed(4)}+31.);
+        float coat=smoothstep(${(o.th-.2).toFixed(3)},${(o.th+.2).toFixed(3)},nA*.7+nB*.3)*${o.coat.toFixed(3)};
+        ${o.ins?'float qd=min(length(vec2(vOP.x-430.,vOP.z)),length(vec2(vOP.x+430.,vOP.z)));float qi=step(abs(vOP.y),915.5)*(vOP.z<0.?step(qd,625.):step(abs(vOP.x),1050.5)*step(vOP.z,700.6));coat=mix(coat,.55+.4*nA,qi);':''}
+        diffuseColor.rgb*=${(1-o.v).toFixed(3)}+${(2*o.v).toFixed(3)}*nB;
+        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.47,.46,.43)*(.82+.36*nB),coat);`)
+      .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(mix(roughnessFactor+(nB-.5)*.3,.95,coat),.05,1.);')
+      .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor*=1.-coat;');
+    if(GL2&&o.bump)f=f.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+        {float qH=(nB+coat*1.5)*${o.bump.toFixed(5)};vec3 qPx=dFdx(-vViewPosition);vec3 qPy=dFdy(-vViewPosition);float qHx=dFdx(qH);float qHy=dFdy(qH);
+         vec3 qA=cross(qPy,normal);vec3 qB=cross(normal,qPx);float qD=dot(qPx,qA);normal=normalize(abs(qD)*normal-sign(qD)*(qHx*qA+qHy*qB));}`);
+    sh.fragmentShader=f;};
+  mat.customProgramCacheKey=()=>JSON.stringify(o);
+}
+const DET={inner:{s1:.0035,s2:.05,th:.36,coat:.9,v:.1,bump:.0011},cast:{s1:.01,s2:.06,th:.72,coat:.35,v:.12,bump:.0007},paint:{s1:.004,s2:.03,th:.66,coat:.3,v:.05,bump:.00025}};
+const mats={},clipPlane=new THREE.Plane(new THREE.Vector3(0,0,-1),0.02),sealPlanes=[new THREE.Plane(new THREE.Vector3(1,0,0),.43),new THREE.Plane(new THREE.Vector3(0,0,-1),.76)];
+function getMat(key,part){const hk=HOUSING.has(part.id),xk=XRAY.has(part.id),sec=part.tag==='sec',inn=INNER.test(part.id);
+  const kind=sec?'sec':inn?'inner':/^(castarm|gear|sealbody|liner|nihard)$/.test(key)?'cast':/^(body|dark|gearblue|motor|yellow)$/.test(key)?'paint':'';
+  const k=key+(hk?'_h':'')+(xk?'_x':'')+'_'+kind;
+  if(!mats[k]){const d=MAT[key];const m=mats[k]=std(d[0],d[1],d[2],{side:hk?THREE.DoubleSide:THREE.FrontSide});m.userData={housing:hk,xray:xk};
+    if(key==='grease'){m.transparent=true;m.opacity=.82;}
+    m.envMapIntensity=inn?.3:.85;if(DET[kind])detail(m,Object.assign({ins:key==='body'&&hk&&xk},DET[kind]));}
+  return mats[k];}
 
 const mixer=new THREE.Group();mixer.rotation.x=-Math.PI/2;mixer.scale.setScalar(.001);mixer.position.y=H0;scene.add(mixer);
 const G={};for(const[k,g]of Object.entries(meta.groups)){G[k]=new THREE.Group();G[k].position.set(...g.pivot);mixer.add(G[k]);}
-const geos={},pick=[],byId={},tagged={cover:[],guard:[]};
+const geos={},pick=[],byId={},tagged={cover:[],guard:[],sec:[],secfull:[]};
 const m4=a=>new THREE.Matrix4().set(a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8],a[9],a[10],a[11],0,0,0,1);
 for(const p of meta.parts){
   const key=p.v[0];
@@ -290,13 +326,13 @@ for(const p of meta.parts){
   if(p.inst.length===1){mesh=new THREE.Mesh(geos[key],mat);mesh.applyMatrix4(m4(p.inst[0]));}
   else{mesh=new THREE.InstancedMesh(geos[key],mat,p.inst.length);p.inst.forEach((a,i)=>mesh.setMatrixAt(i,m4(a)));}
   mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.part=p;mesh.userData.mat=mat;G[p.group].add(mesh);pick.push(mesh);
-  (byId[p.name]=byId[p.name]||[]).push(mesh);if(p.tag)tagged[p.tag].push(mesh);
+  (byId[p.name]=byId[p.name]||[]).push(mesh);if(p.tag)tagged[p.tag].push(mesh);if(p.tag==='sec')mesh.visible=false;
 }
 
 // ---------------------------------------------------------------- beton, oqimlar (CAD koordinatalarida, mm)
 const LVL=[];{let v=0;for(let h=-600;h<=700;h+=5){let w;if(h>=0)w=2060;else{const s=Math.sqrt(R*R-h*h);w=(s>C)?2*(C+s):4*s;}v+=w*5*1800/1e9;LVL.push([h,v]);}}
 function levelOf(v){if(v<=0)return-600;for(let i=1;i<LVL.length;i++)if(LVL[i][1]>=v){const a=LVL[i-1],b=LVL[i];return a[0]+(b[0]-a[0])*(v-a[1])/(b[1]-a[1]);}return 700;}
-const concMat=std(0x8a8a84,0,.55,{side:THREE.DoubleSide});
+const concMat=std(0x8a8a84,0,.55,{side:THREE.DoubleSide});detail(concMat,{s1:.004,s2:.07,th:2,coat:0,v:.22,bump:.0016});
 const NX=26,NY=22,conc=[];
 for(const sgn of[-1,1]){const g=new THREE.PlaneGeometry(1030,1800,NX,NY);const m=new THREE.Mesh(g,concMat);m.userData.sgn=sgn;m.userData.base=g.attributes.position.array.slice();m.receiveShadow=true;m.visible=false;mixer.add(m);conc.push(m);}
 function updateConcrete(h,t,amp){
@@ -409,23 +445,33 @@ const ray=new THREE.Raycaster();let sel=null;const hi={};
 function visibleDeep(o){for(;o;o=o.parent)if(!o.visible)return false;return true;}
 function select(name){
   if(sel)for(const m of byId[sel])m.material=m.userData.mat;
-  sel=name;$('hint').hidden=!!name;if(!name){$('card').hidden=true;return;}
-  for(const m of byId[name]){const k=m.userData.mat.uuid;if(!hi[k]){hi[k]=m.userData.mat.clone();hi[k].emissive=new THREE.Color(0xa86a00);hi[k].emissiveIntensity=.9;hi[k].transparent=false;hi[k].opacity=1;}m.material=hi[k];}
-  const p=byId[name][0].userData.part;$('cName').textContent=p.name;$('cDesc').textContent=p.desc;$('card').hidden=false;
+  sel=name;$('hint').hidden=!!name||seal;if(!name){document.querySelectorAll('#labels button').forEach(b=>b.classList.remove('on'));if(seal)showLegend();else $('card').hidden=true;return;}
+  for(const m of byId[name]){const k=m.userData.mat.uuid;if(!hi[k]){hi[k]=m.userData.mat.clone();hi[k].onBeforeCompile=m.userData.mat.onBeforeCompile;hi[k].customProgramCacheKey=m.userData.mat.customProgramCacheKey;hi[k].userData=m.userData.mat.userData;hi[k].emissive=new THREE.Color(0xa86a00);hi[k].emissiveIntensity=.9;hi[k].transparent=false;hi[k].opacity=1;hi[k].clippingPlanes=m.userData.mat.clippingPlanes;hi[k].clipIntersection=m.userData.mat.clipIntersection;}m.material=hi[k];}
+  const p=byId[name][0].userData.part;$('cName').textContent=p.name;$('cDesc').textContent=p.desc;$('legend').hidden=true;$('card').hidden=false;
+  document.querySelectorAll('#labels button').forEach(b=>b.classList.toggle('on',b.dataset.n===name));
 }
 function pickAt(x,y){const r=cv.getBoundingClientRect();ray.setFromCamera({x:(x-r.left)/r.width*2-1,y:-(y-r.top)/r.height*2+1},camera);
-  for(const h of ray.intersectObjects(pick,false)){if(!visibleDeep(h.object))continue;if(cut&&h.object.userData.mat.userData.housing&&h.point.z>-clipPlane.constant)continue;
+  for(const h of ray.intersectObjects(pick,false)){if(!visibleDeep(h.object))continue;if(cut&&h.object.userData.mat.userData.housing&&h.point.z>-clipPlane.constant)continue;if(seal&&h.object.userData.mat.userData.housing&&h.point.x<-.43&&h.point.z>.76)continue;
     if(xray&&h.object.userData.mat.userData.xray)continue;select(h.object.userData.part.name===sel?null:h.object.userData.part.name);return;}
   select(null);}
-$('cardX').onclick=()=>select(null);
+$('cardX').onclick=()=>{if(seal&&!sel)$('card').hidden=true;else select(null);};
 {const seen=new Set(),L=$('list');for(const p of meta.parts){if(seen.has(p.name))continue;seen.add(p.name);const b=document.createElement('button');b.textContent=p.name;b.onclick=()=>{select(p.name);if(innerWidth<700)togglePanel(false);};L.appendChild(b);}}
 
 // ---------------------------------------------------------------- ko'rinish tugmalari
-let cut=false,xray=false;
-function applyMats(){for(const m of Object.values(mats).concat(Object.values(hi))){const u=m.userData;if(u.housing){m.clippingPlanes=cut?[clipPlane]:[];}
+let cut=false,xray=false,seal=false;
+function applyMats(){for(const m of Object.values(mats).concat(Object.values(hi))){const u=m.userData;if(u.housing){m.clippingPlanes=cut?[clipPlane]:seal?sealPlanes:[];m.clipIntersection=!cut&&seal;}
     if(u.xray){m.transparent=xray;m.opacity=xray?.16:1;m.depthWrite=!xray;}m.needsUpdate=true;}
   concMat.clippingPlanes=[];}
-$('bCut').onclick=()=>{cut=!cut;$('bCut').classList.toggle('on',cut);for(const k in hi)delete hi[k];select(null);applyMats();};
+// val uzeli kesimi: raqamli belgilar va ro'yxat
+const LB=$('labels');meta.labels.forEach((l,i)=>{const b=document.createElement('button');b.textContent=i+1;b.dataset.n=l.name;b.title=l.name;b.onclick=()=>select(l.name);LB.appendChild(b);l.el=b;l.v=new THREE.Vector3(...l.pos);});
+function showLegend(){$('cName').textContent='Val uzeli kesimi';$('cDesc').textContent=innerWidth<700?'Chapda qozon ichi, o\'ngda podshipnik. Raqamga teging.':'Qozon ichidan (chapda) podshipnikkacha (o\'ngda). Raqamga yoki nomga teging.';
+  const L=$('legend');L.textContent='';meta.labels.forEach((l,i)=>{const b=document.createElement('button');const n=document.createElement('b');n.textContent=i+1;b.appendChild(n);b.appendChild(document.createTextNode(l.name));b.onclick=()=>select(l.name);L.appendChild(b);});L.hidden=innerWidth<700;$('card').hidden=false;}
+function setSeal(on){seal=on;if(on&&cut){cut=false;$('bCut').classList.remove('on');}$('bSeal').classList.toggle('on',on);$('bSeal').textContent=on?'Kesimni yopish':'Val zichlagichi kesimi';
+  tagged.sec.forEach(m=>m.visible=on);tagged.secfull.forEach(m=>m.visible=!on);LB.hidden=!on;if(sel){for(const m of byId[sel])m.material=m.userData.mat;sel=null;}for(const k in hi)delete hi[k];applyMats();
+  if(on){const d=Math.max(.5,.23/(Math.tan(camera.fov*Math.PI/360)*Math.min(1.4,camera.aspect)));P.x=-.43-d;P.z=1.045;P.feet=H0+.02-1.65*P.scale;P.yaw=-Math.PI/2;P.pitch=0;setMode('fly');showLegend();$('hint').hidden=true;if(innerWidth<900)togglePanel(false);}
+  else{$('card').hidden=true;$('hint').hidden=false;}}
+$('bSeal').onclick=()=>setSeal(!seal);
+$('bCut').onclick=()=>{if(seal)setSeal(false);cut=!cut;$('bCut').classList.toggle('on',cut);for(const k in hi)delete hi[k];select(null);applyMats();};
 $('bXray').onclick=()=>{xray=!xray;$('bXray').classList.toggle('on',xray);for(const k in hi)delete hi[k];select(null);applyMats();};
 $('bCover').onclick=()=>{const on=$('bCover').classList.toggle('on');tagged.cover.forEach(m=>m.visible=!on);};
 $('bGuard').onclick=()=>{const on=$('bGuard').classList.toggle('on');tagged.guard.forEach(m=>m.visible=!on);};
@@ -488,6 +534,8 @@ function frame(now){
     P.x=Math.max(-45,Math.min(45,P.x));P.z=Math.max(-45,Math.min(45,P.z));
     camera.position.set(P.x,P.feet+1.65*P.scale,P.z);camera.rotation.set(P.pitch,P.yaw,0,'YXZ');
   }
+  if(seal){camera.updateMatrixWorld();mixer.updateMatrixWorld();const w=stage.clientWidth,hh=stage.clientHeight;
+    for(const l of meta.labels){tmpV.copy(l.v).applyMatrix4(mixer.matrixWorld).project(camera);const ok=tmpV.z<1&&Math.abs(tmpV.x)<1&&Math.abs(tmpV.y)<1;l.el.hidden=!ok;if(ok){l.el.style.left=((tmpV.x+1)/2*w)+'px';l.el.style.top=((1-tmpV.y)/2*hh)+'px';}}}
   // HUD
   hudT-=dt;if(hudT<=0){hudT=.15;if(S.cycle===null)$('phase').textContent=S.flow>.01?'Bo\'shatish':S.motor?(S.vol>.05?'Aralashtirish':'Salt yurish'):(S.omega>.02?'To\'xtamoqda':'Kutish');$('gRpm').textContent=fmt(S.omega*25.7,1);$('gVol').textContent=fmt(S.vol,2);$('gGate').textContent=S.gate<.02?'yopiq':S.gate>.98?'ochiq':Math.round(S.gate*100)+'%';}
   if(msgT>0){msgT-=dt;if(msgT<=0)$('msg').hidden=true;}
